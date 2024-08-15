@@ -3,6 +3,7 @@ import { PostsService } from './service';
 import { ForbiddenException, NotFoundException } from '../../utils';
 import { User, UsersService } from '../users';
 import { Post } from './types';
+import { number } from 'zod';
 
 
 export class PostsController {

@@ -7,6 +7,7 @@ import { HttpError } from 'http-errors';
 import { AuthRouter } from './modules/auth';
 import { UserRouter } from './modules/users';
 import { PostsRouter } from './modules/posts';
+import { CommentsRouter } from './modules/comments';
 import * as process from 'process';
 
 
@@ -25,6 +26,7 @@ api.get('/', (req, res) => {
 api.use('/auth', AuthRouter);
 api.use('/users', UserRouter);
 api.use('/posts', PostsRouter);
+api.use('/comments', CommentsRouter);
 
 app.use('/api', api);
 

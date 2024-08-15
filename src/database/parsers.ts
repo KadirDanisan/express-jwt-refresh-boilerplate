@@ -2,6 +2,7 @@ import { RefreshToken, RefreshTokenDb } from '../modules/auth';
 import { parseSqliteDate } from '../utils';
 import { User, UserDb } from '../modules/users';
 import { Post, PostDb } from '../modules/posts';
+import { Comment, CommentDb } from 'src/modules/comments';
 
 // Utility type to infer all keys with Date-like values including null and undefined
 type DateKey<T> = {
@@ -45,4 +46,10 @@ export function parsePost(post: PostDb) {
     const dateFields = ['createdAt', 'updatedAt'] as const;
 
     return parseRow<Post>(post, dateFields);
+}
+
+export function parseComment(comment: CommentDb) {
+    const dateFields = ['createdAt', 'updateAt'] as const;
+    
+    return parseRow<Comment>(comment, dateFields);
 }
