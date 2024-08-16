@@ -12,7 +12,7 @@ export const JWT_SECRET_RT = process.env.JWT_SECRET_RT;
 
 const allTokenSettings = {
     accessToken: {
-        expiresIn: 300, // 5 minutes
+        expiresIn: 86400, // 1 day
         secret: JWT_SECRET_AT,
     },
     refreshToken: {

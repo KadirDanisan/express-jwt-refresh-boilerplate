@@ -1,13 +1,14 @@
 export interface CommentDb {
-    id: number;
+    commentId: number;
+    postId: number;
     userId: number;
     title: string;
-    content: string;
-    createdAt: string;
-    updatedAt: string;
+    comment: string;
+    createdAt: string; // Veritabanından alınan tarih formatı
+    updatedAt: string; // Veritabanından alınan tarih formatı
 }
 
 export interface Comment extends Omit<CommentDb, 'createdAt' | 'updatedAt'> {
-    createdAt: Date;
-    updatedAt: Date;
+    createdAt: Date; // Tarih nesneleri
+    updatedAt: Date; // Tarih nesneleri
 }

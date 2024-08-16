@@ -5,8 +5,9 @@ export async function up(knex: Knex): Promise<void> {
     await knex.schema.createTable('comments', function(table) {
         table.increments();
         table.integer('userId').notNullable().references('id').inTable('users').onDelete('CASCADE').onUpdate('CASCADE');
+        table.integer('postId').notNullable().references('id').inTable('posts').onDelete('CASCADE').onUpdate('CASCADE');
         table.string('title').notNullable();
-        table.text('content').notNullable();
+        table.text('comment').notNullable();
         table.dateTime('createdAt').notNullable().defaultTo(knex.fn.now());
         table.dateTime('updatedAt').notNullable().defaultTo(knex.fn.now());
     });

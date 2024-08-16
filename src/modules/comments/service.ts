@@ -1,5 +1,4 @@
 import { db } from '../../database'; // knex konfigürasyonunuzu içeren dosya
-import { CommentDb } from './types'; // Veritabanı modelinizin tipleri
 
 export class CommentsService {
     static async getAll(postId?: number) {
