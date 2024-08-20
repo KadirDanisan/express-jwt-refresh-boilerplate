@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import { UsersService } from './service';
+import { CommentsService } from '../comments/service';
 import { ForbiddenException, NotFoundException } from '../../utils';
 
 
@@ -45,6 +46,14 @@ export class UsersController {
         }
 
         res.json({ message: 'User deleted' });
+    }
+
+    static async getUserComments(req: Request, res: Response, next: NextFunction) {
+            
+        const userId = +req.params.id;
+        const comments = await CommentsService.getAll({userId});
+
+        res.json(comments);
     }
 }
 

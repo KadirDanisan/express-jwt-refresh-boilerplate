@@ -6,10 +6,13 @@ experience and enhanced security.
 
 ## Table of Contents 📚
 
-- [Features](#features)
-- [Installation](#installation)
-- [Project Structure](#project-structure)
-- [Usage](#usage)
+- [Node.js - Express.js - Passport.js - JWT Refresh Token Boilerplate 🚀](#nodejs---expressjs---passportjs---jwt-refresh-token-boilerplate-)
+  - [Table of Contents 📚](#table-of-contents-)
+  - [Features ✨](#features-)
+    - [What is Refresh Token? 🤔](#what-is-refresh-token-)
+  - [Installation 🛠️](#installation-️)
+  - [Project Structure 🗂️](#project-structure-️)
+  - [Usage 🚀](#usage-)
     - [Register](#register)
     - [Login](#login)
     - [Get Current User](#get-current-user)
@@ -25,12 +28,12 @@ experience and enhanced security.
     - [Create a New Post](#create-a-new-post)
     - [Update an Existing Post](#update-an-existing-post)
     - [Delete a Post](#delete-a-post)
-- [Middlewares](#middlewares)
+  - [Middlewares 🛡️](#middlewares-️)
     - [Authentication](#authentication)
     - [Request Validation](#request-validation)
-- [Contributing](#contributing)
-- [License](#license)
-- [Acknowledgements](#acknowledgements)
+  - [Contributing 🤝](#contributing-)
+  - [License 📜](#license-)
+  - [Acknowledgements 🙏](#acknowledgements-)
 
 ## Features ✨
 
@@ -673,7 +676,6 @@ Special thanks to the authors of the libraries and tools used in this project. Y
 - [Express.js](https://expressjs.com/)
 - [Passport.js](http://www.passportjs.org/)
 - [JWT (JSON Web Tokens)](https://jwt.io/)
-- [Knex.js](https://knexjs.org/)
 - [Node-cron](https://www.npmjs.com/package/node-cron)
 - [Zod](https://zod.dev/)
 - [SQLite](https://www.sqlite.org/)

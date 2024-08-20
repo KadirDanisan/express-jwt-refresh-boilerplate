@@ -1,11 +1,21 @@
+import exp from 'constants';
 import { db } from '../../database'; // knex konfigürasyonunuzu içeren dosya
+import { userCommentsRequestSchema } from '../users/request-schemas';
+interface GetAllCommentsParams {
+    postId?: number;
+    userId?: number;
+}
 
 export class CommentsService {
-    static async getAll(postId?: number) {
+    static async getAll({ postId, userId }: GetAllCommentsParams) {
         let query = db('comments').select('*');
 
         if (postId) {
             query = query.where({ postId });
+        }
+
+        if (userId) {
+            query = query.where({ userId });
         }
 
         return query;

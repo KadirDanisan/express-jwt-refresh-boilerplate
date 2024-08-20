@@ -12,7 +12,6 @@ export class AuthController {
         const lang = req.acceptsLanguages()[0].replace('*', '') || 'en';
 
         const username = req.body.username.toLocaleLowerCase(lang);
-
         // Check if the username is already taken
         const existingUser = await Users().where('username', username).first();
 

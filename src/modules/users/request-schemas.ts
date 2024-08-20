@@ -27,6 +27,12 @@ export const userUpdateRequestSchema = z.strictObject({
     }),
 });
 
+export const userCommentsRequestSchema = z.strictObject({
+    params: z.strictObject({
+        id: idValidation,
+    }),
+});
+
 export const userDestroyRequestSchema = userShowRequestSchema;
 
 

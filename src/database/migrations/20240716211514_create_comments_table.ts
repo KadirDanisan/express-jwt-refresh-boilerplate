@@ -1,19 +1,36 @@
-import type { Knex } from 'knex';
+import { sql } from 'drizzle-orm';
+import { db } from '../connection';
+import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core';
 
+// comments tablosu tanımlaması
+export const Comments = sqliteTable('comments', {
+    id: integer('id').primaryKey(),
+    userId: integer('userId').notNull(),
+    postId: integer('postId').notNull(),
+    title: text('title').notNull(),
+    comment: text('comment').notNull(),
+    createdAt: text('createdAt').notNull().default('CURRENT_TIMESTAMP'),
+    updatedAt: text('updatedAt').notNull().default('CURRENT_TIMESTAMP'),
+});
 
-export async function up(knex: Knex): Promise<void> {
-    await knex.schema.createTable('comments', function(table) {
-        table.increments();
-        table.integer('userId').notNullable().references('id').inTable('users').onDelete('CASCADE').onUpdate('CASCADE');
-        table.integer('postId').notNullable().references('id').inTable('posts').onDelete('CASCADE').onUpdate('CASCADE');
-        table.string('title').notNullable();
-        table.text('comment').notNullable();
-        table.dateTime('createdAt').notNullable().defaultTo(knex.fn.now());
-        table.dateTime('updatedAt').notNullable().defaultTo(knex.fn.now());
-    });
+export async function up(): Promise<void> {
+    // Tablo oluşturma işlemi için SQL sorgusu
+    await db.run(sql`
+        CREATE TABLE comments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            userId INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE ON UPDATE CASCADE,
+            postId INTEGER NOT NULL REFERENCES posts(id) ON DELETE CASCADE ON UPDATE CASCADE,
+            title TEXT NOT NULL,
+            comment TEXT NOT NULL,
+            createdAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updatedAt TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+    `);
 }
 
-
-export async function down(knex: Knex): Promise<void> {
-    await knex.schema.dropTable('comments');
+export async function down(): Promise<void> {
+    // Tabloyu kaldırma işlemi için SQL sorgusu
+    await db.run(sql`
+        DROP TABLE IF EXISTS comments;
+    `);
 }

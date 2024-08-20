@@ -2,7 +2,9 @@ import { NextFunction, Request, Response } from 'express';
 import { PostsService } from './service';
 import { ForbiddenException, NotFoundException } from '../../utils';
 import { User, UsersService } from '../users';
+import { CommentsService } from '../comments/service';
 import { Post } from './types';
+import { number } from 'zod';
 
 
 export class PostsController {
@@ -57,6 +59,13 @@ export class PostsController {
         }
 
         res.json({ message: 'Post deleted' });
+    }
+
+    static async getPostComments(req: Request, res: Response, next: NextFunction) {
+        const postId = +req.params.id;
+        const comments = await CommentsService.getAll({postId});
+
+        res.json(comments);
     }
 }
 

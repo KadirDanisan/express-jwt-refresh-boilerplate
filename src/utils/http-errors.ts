@@ -1,4 +1,4 @@
-import createError from 'http-errors';
+import * as createError from 'http-errors';
 
 /*
 We will add "Exception" suffix to avoid conflict with the built-in types of http-errors because we will export them as well.
@@ -93,4 +93,4 @@ export {
     NetworkAuthenticationRequireException,
 };
 
-export * from 'http-errors';
+export { createError };

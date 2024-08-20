@@ -38,6 +38,11 @@ export const postDestroyRequestSchema = z.strictObject({
     }),
 });
 
+export const postCommentsRequestSchema = z.strictObject({
+    params: z.strictObject({
+        id: idValidation,
+    }),
+});
 
 export type PostCreatePayload = z.infer<typeof postCreationRequestSchema>['body'];
 export type PostUpdatePayload = z.infer<typeof postUpdateRequestSchema>['body'];

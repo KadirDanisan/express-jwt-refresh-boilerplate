@@ -10,7 +10,7 @@ export class CommentsController {
         const postId = req.query.postId ? +req.query.postId : undefined;
 
         try {
-            const comments = await CommentsService.getAll(postId);
+            const comments = await CommentsService.getAll({postId});
             res.json(comments);
         } catch (error) {
             next(error);

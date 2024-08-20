@@ -17,8 +17,9 @@ export const commentShowRequestSchema = z.strictObject({
 
 export const commentCreationRequestSchema = z.strictObject({
     body: z.strictObject({
+        postId: idValidation,
         title: titleValidation,
-        content: commentValidation,
+        comment: commentValidation,
     }),
 });
 
@@ -28,7 +29,7 @@ export const commentUpdateRequestSchema = z.strictObject({
     }),
     body: z.strictObject({
         title: titleValidation.optional(),
-        content: commentValidation.optional(),
+        comment: commentValidation.optional(),
     }),
 });
 

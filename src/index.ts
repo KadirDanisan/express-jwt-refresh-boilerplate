@@ -32,11 +32,12 @@ app.use('/api', api);
 
 // Error handler
 app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
-    if (!(err instanceof HttpError)) return void next(err);
+    if (!(err instanceof HttpError)) return next(err);
 
     res.statusCode = err.statusCode;
     res.json({ message: err.message });
 });
+
 
 app.listen(port, () => {
     console.log(`App listening on port ${port}`);
