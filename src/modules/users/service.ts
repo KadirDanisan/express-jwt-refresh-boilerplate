@@ -1,18 +1,27 @@
 import * as argon2 from '@node-rs/argon2';
-import { parseUser, Users } from '../../database';
+import { db, parseUser, users } from '../../database';
 import { UserUpdatePayload } from './request-schemas';
 import { capitalize, formatSqliteDate, NotFoundException } from '../../utils';
 import { UserDb } from './types';
 import { UserRegistrationPayload } from '../auth/request-schemas';
+import { eq, ne, gt, gte } from "drizzle-orm";
 
-export const returningUserFields = ['id', 'username', 'firstName', 'lastName', 'role', 'createdAt', 'updatedAt'];
+export const returningUserFields ={
+    id: users.id,
+    username: users.username,
+    firstName: users.firstName,
+    lastName: users.lastName,
+    role: users.role,
+    createdAt: users.createdAt,
+    updateAt: users.updatedAt
+}
 
 class UsersService {
     async index({ role }: { role?: 'user' | 'admin' } = {}) {
-        let query = Users().select(returningUserFields);
+        let query = db.select(returningUserFields).from(users);
 
         if (role) {
-            query = query.where({ role });
+            query = query.where(eq(users.role, role));
         }
 
         const usersRaw: UserDb[] = await query;
@@ -22,7 +31,7 @@ class UsersService {
     }
 
     async show(id: number) {
-        const userRaw: UserDb = await Users().where({ id }).select(returningUserFields).first();
+        const userRaw: UserDb = await db.select(returningUserFields).from(users).where(eq(users.id, 5)); 
         const user = parseUser(userRaw);
 
         if (!user) {
@@ -35,7 +44,7 @@ class UsersService {
     async store(payloadRaw: UserRegistrationPayload, lang?: string) {
         const payload = await this.prepareUserPayload({ ...payloadRaw, role: payloadRaw.role ?? 'user' }, lang);
 
-        const [userRaw]: [UserDb] = await Users().insert(payload).returning(returningUserFields);
+        const [userRaw]: [UserDb] = await users().insert(payload).returning(returningUserFields);
         const user = parseUser(userRaw);
 
         return user!;
@@ -44,9 +53,9 @@ class UsersService {
     async update(id: number, payloadRaw: UserUpdatePayload, lang?: string) {
         const payload = await this.prepareUserPayload(payloadRaw, lang);
 
-        await Users().where({ id }).update({ ...payload, updatedAt: formatSqliteDate(new Date()) });
+        await users().where({ id }).update({ ...payload, updatedAt: formatSqliteDate(new Date()) });
 
-        const updatedUserRaw: UserDb = await Users().where({ id }).select(returningUserFields).first();
+        const updatedUserRaw: UserDb = await users().where({ id }).select(returningUserFields).first();
         const updatedUser = parseUser(updatedUserRaw);
 
         if (!updatedUser) {
@@ -57,7 +66,7 @@ class UsersService {
     }
 
     async destroy(id: number) {
-        const deletedUsersCount = await Users().where({ id }).delete();
+        const deletedUsersCount = await users().where({ id }).delete();
 
         return deletedUsersCount === 1;
     }
@@ -78,7 +87,7 @@ class UsersService {
             firstName,
             lastName,
             hashedPassword,
-            role,
+            role
         };
 
         Object.keys(userPayload).forEach(key => {

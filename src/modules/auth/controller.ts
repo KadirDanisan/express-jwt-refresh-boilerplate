@@ -1,9 +1,11 @@
 import { NextFunction, Request, Response } from 'express';
-import { Users } from '../../database';
+import { users } from '../../database';
 import { AuthService } from './service';
 import { User, UsersService } from '../users';
 import { RtPayload } from './types';
+import { eq } from "drizzle-orm";
 import { BadRequestException } from '../../utils';
+import { db } from '../../database/connection'; 
 
 export class AuthController {
     static async register(req: Request, res: Response, next: NextFunction) {
@@ -13,7 +15,7 @@ export class AuthController {
 
         const username = req.body.username.toLocaleLowerCase(lang);
         // Check if the username is already taken
-        const existingUser = await Users().where('username', username).first();
+        const existingUser = await db.select().from(users).where(eq(username.username, 5));
 
         if (existingUser) {
             throw new BadRequestException('Username already taken');
@@ -33,7 +35,7 @@ export class AuthController {
     }
 
     static async login(req: Request, res: Response, next: NextFunction) {
-        const user = (await req.user) as User & { hashedPassword: string };
+        const user = (await req.user) as User & { hashedPassword: any };
 
         const { accessToken, refreshToken } = await AuthService.generateAuthTokens(user);
 

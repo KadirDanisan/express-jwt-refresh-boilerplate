@@ -2,10 +2,11 @@ import jwt from 'jsonwebtoken';
 import * as argon2 from '@node-rs/argon2';
 import * as process from 'process';
 import { convertToSeconds, formatSqliteDate, NotFoundException, UnprocessableEntityException } from '../../utils';
-import { parseRefreshToken, parseUser, RefreshTokens, Users } from '../../database';
+import { parseRefreshToken, parseUser, refreshTokens, users } from '../../database';
 import { RefreshTokenDb, RtPayload } from './types';
 import { returningUserFields, User, UserDb, UserWithHashedPassword } from '../users';
-
+import { eq } from "drizzle-orm";
+import { db } from '../../database/connection'; 
 
 export const JWT_SECRET_AT = process.env.JWT_SECRET_AT;
 export const JWT_SECRET_RT = process.env.JWT_SECRET_RT;
@@ -20,20 +21,43 @@ const allTokenSettings = {
         secret: JWT_SECRET_RT,
     },
 };
-
 class AuthService {
 
     async findUserFromCredentials(username: string, password: string): Promise<UserWithHashedPassword | null> {
-        const userRaw: UserDb | null = await Users().where({ username }).select([...returningUserFields, 'hashedPassword']).first();
-        const user = parseUser(userRaw) as UserWithHashedPassword;
+        const userRaw = await db
+        .select({
+            id: users.id,
+            username: users.username,
+            firstName: users.firstName,
+            lastName: users.lastName,
+            role: users.role,
+            createdAt: users.createdAt,
+            updatedAt: users.updatedAt,
+            hashedPassword: users.hashedPassword // Ensure this is selected
+        })
+        .from(users)
+        .where(eq(users.username, username))
+        .limit(1) // Ensure only one result is returned
+        .then(rows => rows[0] || null); // Handle result as array
 
-        if (!user) {
-            throw new NotFoundException('User not found');
-        }
+    // Handle case where user is not found
+    if (!userRaw) {
+        return null;
+    }
 
-        const passwordMatch = await this.verifyPassword(user.hashedPassword, password);
+    // Parse and type-cast user
+    const user: UserWithHashedPassword = {
+        ...userRaw,
+        role: userRaw.role as 'user' | 'admin',
+        createdAt: new Date(userRaw.createdAt),
+        updatedAt: new Date(userRaw.updatedAt)
+    };
 
-        return passwordMatch ? user : null;
+    // Verify the password
+    const passwordMatch = await this.verifyPassword(user.hashedPassword, password);
+
+    // Return user if password matches, otherwise return null
+    return passwordMatch ? user : null;
     }
 
     async generateAuthTokens(user: User, oldRtPayload?: RtPayload): Promise<{
@@ -49,7 +73,7 @@ class AuthService {
     }
 
     async revokeRefreshToken(jti: number) {
-        const refreshTokenDb: RefreshTokenDb = await RefreshTokens().where({ id: jti }).first();
+        const refreshTokenDb: RefreshTokenDb = await refreshTokens().where({ id: jti }).first();
         const refreshToken = parseRefreshToken(refreshTokenDb);
 
         if (!refreshToken) {
@@ -60,13 +84,13 @@ class AuthService {
             throw new UnprocessableEntityException('Refresh token already revoked');
         }
 
-        await RefreshTokens().where({ id: jti }).update({ revokedAt: formatSqliteDate(new Date()) });
+        await refreshTokens().where({ id: jti }).update({ revokedAt: formatSqliteDate(new Date()) });
 
         return true;
     }
 
     async revokeAllRefreshTokensOfUser(userId: number) {
-        const revokedTokensCount = await RefreshTokens().where({
+        const revokedTokensCount = await refreshTokens().where({
             userId,
             revokedAt: null,
         }).update({ revokedAt: formatSqliteDate(new Date()) });
@@ -131,7 +155,7 @@ class AuthService {
 
         if (!oldRtPayload) {
             // We need to store the jti of the refresh token in the database
-            const [refreshTokenDb]: [{ id: number }] = await RefreshTokens().insert({
+            const [refreshTokenDb]: [{ id: number }] = await refreshTokens().insert({
                 userId,
                 expiresAt: tokenExpiresAtString,
                 createdAt: iatString, // These dates need to be equal to "iat" of signed token. That's why we manually set them here
@@ -139,7 +163,7 @@ class AuthService {
             }).returning(['id']);
             jti = refreshTokenDb.id;
         } else {
-            const refreshTokenDb: RefreshTokenDb | null = await RefreshTokens().where({ id: jti }).first();
+            const refreshTokenDb: RefreshTokenDb | null = await refreshTokens().where({ id: jti }).first();
             const refreshToken = parseRefreshToken(refreshTokenDb);
 
             if (!refreshToken) {
@@ -167,7 +191,7 @@ class AuthService {
             }
 
             // We need to update the expiration date of the refresh token in the database
-            await RefreshTokens().where({ id: jti }).update({
+            await refreshTokens().where({ id: jti }).update({
                 expiresAt: tokenExpiresAtString,
                 updatedAt: iatString,
             });

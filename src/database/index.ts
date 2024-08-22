@@ -1,3 +1,3 @@
 export * from './connection';
-export * from './tables';
+export * from './schema';
 export * from './parsers';
