@@ -5,7 +5,7 @@ import { convertToSeconds, formatSqliteDate, NotFoundException, UnprocessableEnt
 import { parseRefreshToken, parseUser, refreshTokens, users } from '../../database';
 import { RefreshTokenDb, RtPayload } from './types';
 import { returningUserFields, User, UserDb, UserWithHashedPassword } from '../users';
-import { eq } from "drizzle-orm";
+import { eq, isNull } from "drizzle-orm";
 import { db } from '../../database/connection'; 
 
 export const JWT_SECRET_AT = process.env.JWT_SECRET_AT;
@@ -60,21 +60,28 @@ class AuthService {
     return passwordMatch ? user : null;
     }
 
-    async generateAuthTokens(user: User, oldRtPayload?: RtPayload): Promise<{
+    async generateAuthTokens(user: User, oldRtPayload: RtPayload): Promise<{
         accessToken: string,
         refreshToken: string
     }> {
         const now = new Date();
-
-        const accessToken = await this.generateAuthToken(user, 'accessToken', now);
+    
+        // oldRtPayload sağlanıyor
+        const accessToken = await this.generateAuthToken(user, 'accessToken', now, oldRtPayload);
         const refreshToken = await this.generateAuthToken(user, 'refreshToken', now, oldRtPayload);
-
+    
         return { accessToken, refreshToken };
     }
 
     async revokeRefreshToken(jti: number) {
-        const refreshTokenDb: RefreshTokenDb = await refreshTokens().where({ id: jti }).first();
-        const refreshToken = parseRefreshToken(refreshTokenDb);
+        const refreshTokenDb = await db
+            .select()
+            .from(refreshTokens)
+            .where(eq(refreshTokens.id, jti))
+            .limit(1)
+            .then(rows => rows[0] || null);
+
+        const refreshToken = refreshTokenDb ? parseRefreshToken(refreshTokenDb) : null;
 
         if (!refreshToken) {
             throw new NotFoundException('Refresh token not found');
@@ -84,17 +91,23 @@ class AuthService {
             throw new UnprocessableEntityException('Refresh token already revoked');
         }
 
-        await refreshTokens().where({ id: jti }).update({ revokedAt: formatSqliteDate(new Date()) });
+        await db
+            .update(refreshTokens)
+            .set({ revokedAt: formatSqliteDate(new Date()) })
+            .where(eq(refreshTokens.id, jti));
 
         return true;
     }
 
     async revokeAllRefreshTokensOfUser(userId: number) {
-        const revokedTokensCount = await refreshTokens().where({
-            userId,
-            revokedAt: null,
-        }).update({ revokedAt: formatSqliteDate(new Date()) });
-
+        const revokedTokensCount = await db.update(refreshTokens).
+        set({ revokedAt: formatSqliteDate(new Date())})
+        .where(
+            (
+                eq(refreshTokens.userId, userId),
+                isNull(refreshTokens.revokedAt)
+            )
+        );
         return revokedTokensCount;
     }
 
@@ -102,7 +115,7 @@ class AuthService {
         return argon2.verify(hashedPassword, password);
     }
 
-    private async generateAuthToken(user: User, type: 'accessToken' | 'refreshToken', iat: Date, oldRtPayload?: RtPayload) {
+    private async generateAuthToken(user: User, type: 'accessToken' | 'refreshToken', iat: Date, oldRtPayload: RtPayload) {
         let jti: number | undefined;
 
         const iatDate = new Date(iat);
@@ -122,8 +135,9 @@ class AuthService {
                 issuedAt: iatDate,
                 tokenExpiresAt,
                 oldRtPayload,
-            });
+        });        
         }
+
 
         // We generate iat (issued at) and exp (expiration) manually because of better precision
         const iatAsSeconds = convertToSeconds(iatDate);
@@ -137,9 +151,10 @@ class AuthService {
             jti,
             iat: iatAsSeconds,
             exp,
-        }, secret);
+        },secret);
 
         return token;
+
     }
 
     private async upsertRefreshToken(
@@ -163,7 +178,8 @@ class AuthService {
             }).returning(['id']);
             jti = refreshTokenDb.id;
         } else {
-            const refreshTokenDb: RefreshTokenDb | null = await refreshTokens().where({ id: jti }).first();
+        
+            const refreshTokenDb = await db.select().from(refreshTokens).where(eq(refreshTokens.id, jti)).limit(0);
             const refreshToken = parseRefreshToken(refreshTokenDb);
 
             if (!refreshToken) {
