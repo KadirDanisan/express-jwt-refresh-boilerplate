@@ -22,7 +22,6 @@ export class AuthController {
         }
 
         const user = await UsersService.store(req.body, lang);
-
         const { accessToken, refreshToken } = await AuthService.generateAuthTokens(user);
 
         const response = {
@@ -77,10 +76,11 @@ export class AuthController {
         const user = req.user;
 
         const revokedTokensCount = await AuthService.revokeAllRefreshTokensOfUser(user.id);
-
-        if (revokedTokensCount === 0) {
+        
+        if (revokedTokensCount.changes === 0) {
             throw new BadRequestException('No active sessions to logout');
         }
+        
 
         res.json({ message: 'Logged out all sessions' });
     }

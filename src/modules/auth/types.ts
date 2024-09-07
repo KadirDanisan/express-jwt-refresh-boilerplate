@@ -22,4 +22,5 @@ export interface AtPayload {
 
 export interface RtPayload extends AtPayload {
     jti: number;
+    iat: number;
 }

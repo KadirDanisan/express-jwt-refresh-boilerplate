@@ -1,9 +1,9 @@
 import passport from 'passport';
-import { Strategy as LocalStrategy } from 'passport-local';
-import { AuthService, JWT_SECRET_AT, JWT_SECRET_RT } from './service';
 import { ExtractJwt, Strategy as JwtStrategy, StrategyOptions as JwtStrategyOptions } from 'passport-jwt';
 import { User, UsersService } from '../users';
 
+const JWT_SECRET_AT: string = process.env.JWT_SECRET_AT!;
+const JWT_SECRET_RT: string = process.env.JWT_SECRET_RT!;
 
 const optsForAt: JwtStrategyOptions = {
     jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -17,20 +17,17 @@ const optsForRt: JwtStrategyOptions = {
 };
 
 
-passport.use('local', new LocalStrategy(
-    { passReqToCallback: true, session: false }, async function(req, usernameRaw, password, done) {
-        const lang = req.acceptsLanguages()[0].replace('*', '') || 'en';
-        const username = req.body.username.toLocaleLowerCase(lang);
+passport.use('jwt-refresh', new JwtStrategy(optsForRt, async function(req, jwtPayload, done) {
+    try {
+        const user = await UsersService.show(+jwtPayload.sub);
+        req.jwtPayload = jwtPayload;
 
-        try {
-            const user = await AuthService.findUserFromCredentials(username, password);
+        return done(null, user);
+    } catch (e) {
+        return done(null, false);
+    }
+}));
 
-            return done(null, user);
-        } catch (e) {
-            return done(null, false, { message: 'Incorrect username or password' });
-        }
-    },
-));
 
 passport.use('jwt', new JwtStrategy(optsForAt, async function(jwtPayload, done) {
     try {

@@ -1,5 +1,5 @@
 import exp from 'constants';
-import { db } from '../../database'; // knex konfigürasyonunuzu içeren dosya
+import {db}  from '../../database'; // knex konfigürasyonunuzu içeren dosya
 import { userCommentsRequestSchema } from '../users/request-schemas';
 interface GetAllCommentsParams {
     postId?: number;

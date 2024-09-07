@@ -5,8 +5,8 @@
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "start": "tsx src/index.ts",
-    "db:migrate": "drizzle-orm migrate:latest --env development",
-    "db:genarate-migrations": "drizzle-kit generate --config \"./src/database/drizzle.config.ts\"" 
+    "db:migrate": "drizzle-kit migrate --config \"./src/database/drizzle.config.ts\"",
+    "db:genarate-migrations": "drizzle-kit generate --config \"./src/database/drizzle.config.ts\""
   },
   "keywords": [],
   "author": "Uğur İLTER <contact@ugurilter.com>",

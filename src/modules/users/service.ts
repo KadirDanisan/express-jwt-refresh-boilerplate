@@ -1,37 +1,43 @@
 import * as argon2 from '@node-rs/argon2';
-import { db, parseUser, users } from '../../database';
+import { db, parseUser } from '../../database';
+import {  Users } from '../../database/schema'; // 'Users' yerine 'users' kullanıldı
 import { UserUpdatePayload } from './request-schemas';
 import { capitalize, formatSqliteDate, NotFoundException } from '../../utils';
 import { UserDb } from './types';
 import { UserRegistrationPayload } from '../auth/request-schemas';
-import { eq, ne, gt, gte } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
-export const returningUserFields ={
-    id: users.id,
-    username: users.username,
-    firstName: users.firstName,
-    lastName: users.lastName,
-    role: users.role,
-    createdAt: users.createdAt,
-    updateAt: users.updatedAt
-}
+// 'users' tablosu ile ilişkili alanları seçmek için yapılandırma
+export const returningUserFields = {
+    id: Users.id,
+    username: Users.username,
+    firstName: Users.firstName,
+    lastName: Users.lastName,
+    role: Users.role,
+    createdAt: Users.createdAt,
+    updatedAt: Users.updatedAt, // 'updateAt' => 'updatedAt' olarak düzeltildi
+};
 
 class UsersService {
     async index({ role }: { role?: 'user' | 'admin' } = {}) {
-        let query = db.select(returningUserFields).from(users);
-
+        let query = db.select({ ...returningUserFields }).from(Users);
         if (role) {
-            query = query.where(eq(users.role, role));
+            query = query.where(eq(Users.role, role));
         }
 
-        const usersRaw: UserDb[] = await query;
-        const users = usersRaw.map(userRaw => parseUser(userRaw)!);
+        const usersRaw: UserDb[] = await query.execute(); // .execute() ile sorguyu çalıştırma
+        const users = usersRaw.map(userRaw => parseUser(userRaw)!); // parseUser fonksiyonunu kullanma
 
         return users;
     }
 
     async show(id: number) {
-        const userRaw: UserDb = await db.select(returningUserFields).from(users).where(eq(users.id, 5)); 
+        const userRaw: UserDb = await db
+            .select({ ...returningUserFields })
+            .from(Users) // 'Users' kullanılıyor
+            .where(eq(Users.id, id)) // 'id' ile kullanıcıyı sorguluyoruz
+            .execute(); // 'execute()' eklendi
+        
         const user = parseUser(userRaw);
 
         if (!user) {
@@ -44,7 +50,12 @@ class UsersService {
     async store(payloadRaw: UserRegistrationPayload, lang?: string) {
         const payload = await this.prepareUserPayload({ ...payloadRaw, role: payloadRaw.role ?? 'user' }, lang);
 
-        const [userRaw]: [UserDb] = await users().insert(payload).returning(returningUserFields);
+        const [userRaw]: [UserDb] = await db
+            .insert(Users)
+            .values(payload) // Verileri ekler
+            .returning({ ...returningUserFields }) // Seçilen alanları döner
+            .execute(); // 'execute()' eklendi
+        
         const user = parseUser(userRaw);
 
         return user!;
@@ -53,9 +64,17 @@ class UsersService {
     async update(id: number, payloadRaw: UserUpdatePayload, lang?: string) {
         const payload = await this.prepareUserPayload(payloadRaw, lang);
 
-        await users().where({ id }).update({ ...payload, updatedAt: formatSqliteDate(new Date()) });
+        await db.update(Users)
+            .set({ ...payload, updatedAt: formatSqliteDate(new Date()) })
+            .where(eq(Users.id, id))
+            .execute(); // 'execute()' eklendi
 
-        const updatedUserRaw: UserDb = await users().where({ id }).select(returningUserFields).first();
+        const updatedUserRaw: UserDb = await db
+            .select({ ...returningUserFields })
+            .from(Users)
+            .where(eq(Users.id, id))
+            .execute(); // 'execute()' eklendi
+        
         const updatedUser = parseUser(updatedUserRaw);
 
         if (!updatedUser) {
@@ -66,7 +85,10 @@ class UsersService {
     }
 
     async destroy(id: number) {
-        const deletedUsersCount = await users().where({ id }).delete();
+        const deletedUsersCount = await db
+            .delete(Users)
+            .where(eq(Users.id, id))
+            .execute(); // 'execute()' eklendi
 
         return deletedUsersCount === 1;
     }
@@ -82,7 +104,7 @@ class UsersService {
         const password = payloadRaw.password;
         const hashedPassword = password ? await argon2.hash(password) : undefined;
 
-        const userPayload = {
+        const userPayload: Partial<UserUpdatePayload> = {
             username,
             firstName,
             lastName,
@@ -90,6 +112,7 @@ class UsersService {
             role
         };
 
+        // Gereksiz alanları temizle
         Object.keys(userPayload).forEach(key => {
             if (userPayload[key] == null) {
                 delete userPayload[key];

@@ -4,10 +4,11 @@ import { ForbiddenException, NotFoundException } from '../../utils';
 import { User, UsersService } from '../users';
 import { Comment } from './types';
 import { CommentsCreatePayload, CommentsUpdatePayload } from './request-schemas';
+import { number } from 'zod';
 
 export class CommentsController {
     static async index(req: Request, res: Response, next: NextFunction) {
-        const postId = req.query.postId ? +req.query.postId : undefined;
+        const postId = +req.query.postId!;
 
         try {
             const comments = await CommentsService.getAll({postId});

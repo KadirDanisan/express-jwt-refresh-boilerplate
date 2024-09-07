@@ -2,13 +2,13 @@ import jwt from 'jsonwebtoken';
 import * as argon2 from '@node-rs/argon2';
 import * as process from 'process';
 import { convertToSeconds, formatSqliteDate, NotFoundException, UnprocessableEntityException } from '../../utils';
-import { parseRefreshToken, parseUser, refreshTokens, users } from '../../database';
-import { RefreshTokenDb, RtPayload } from './types';
-import { returningUserFields, User, UserDb, UserWithHashedPassword } from '../users';
+import { parseRefreshToken, refreshTokens, users } from '../../database';
+import {  RtPayload } from './types';
+import { User, UserWithHashedPassword } from '../users';
 import { eq, isNull } from "drizzle-orm";
 import { db } from '../../database/connection'; 
 
-export const JWT_SECRET_AT = process.env.JWT_SECRET_AT;
+export const JWT_SECRET_AT= process.env.JWT_SECRET_AT;
 export const JWT_SECRET_RT = process.env.JWT_SECRET_RT;
 
 const allTokenSettings = {
@@ -60,13 +60,16 @@ class AuthService {
     return passwordMatch ? user : null;
     }
 
-    async generateAuthTokens(user: User, oldRtPayload: RtPayload): Promise<{
+    async generateAuthTokens(user: User, oldRtPayload?: RtPayload): Promise<{
         accessToken: string,
         refreshToken: string
     }> {
         const now = new Date();
+        if (!oldRtPayload) {
+            // Eğer oldRtPayload tanımlı değilse, işlemi atla
+            throw new Error("oldRtPayload is required to generate tokens");
+        }
     
-        // oldRtPayload sağlanıyor
         const accessToken = await this.generateAuthToken(user, 'accessToken', now, oldRtPayload);
         const refreshToken = await this.generateAuthToken(user, 'refreshToken', now, oldRtPayload);
     
@@ -117,7 +120,6 @@ class AuthService {
 
     private async generateAuthToken(user: User, type: 'accessToken' | 'refreshToken', iat: Date, oldRtPayload: RtPayload) {
         let jti: number | undefined;
-
         const iatDate = new Date(iat);
         iatDate.setMilliseconds(0);
 
@@ -144,14 +146,17 @@ class AuthService {
         const exp = convertToSeconds(tokenExpiresAt);
 
         const secret = tokenSettings.secret;
-
+        if (!secret) {
+            throw new Error("Secret key is undefined");
+        }
         // You can add more data to the token if you want but make sure to add it also to the AtPayload and RtPayload types
         const token = jwt.sign({
             sub: user.id,
             jti,
             iat: iatAsSeconds,
             exp,
-        },secret);
+        }
+       ,secret);
 
         return token;
 
@@ -167,52 +172,67 @@ class AuthService {
         let jti = oldRtPayload?.jti;
         const tokenExpiresAtString = formatSqliteDate(tokenExpiresAt);
         const iatString = formatSqliteDate(issuedAt);
-
+    
         if (!oldRtPayload) {
-            // We need to store the jti of the refresh token in the database
-            const [refreshTokenDb]: [{ id: number }] = await refreshTokens().insert({
-                userId,
-                expiresAt: tokenExpiresAtString,
-                createdAt: iatString, // These dates need to be equal to "iat" of signed token. That's why we manually set them here
-                updatedAt: iatString, // We will validate refresh token freshness based on these dates when refresh is requested
-            }).returning(['id']);
+            // Yeni bir refresh token oluşturulacak
+            const [refreshTokenDb] = await db
+                .insert(refreshTokens)
+                .values({
+                    userId,
+                    expiresAt: tokenExpiresAtString,
+                    createdAt: iatString,
+                    updatedAt: iatString,
+                })
+                .returning({ id: refreshTokens.id }); // 'id' alanını döndürüyoruz
             jti = refreshTokenDb.id;
         } else {
-        
-            const refreshTokenDb = await db.select().from(refreshTokens).where(eq(refreshTokens.id, jti)).limit(0);
+            // Mevcut refresh token ile ilgili işlemler
+            const query = db
+                .select()
+                .from(refreshTokens)
+                .where(eq(refreshTokens.id, jti!)) // jti mevcutsa sorgu yap
+                .limit(1);
+    
+            const [refreshTokenDb] = await query;
+            if (!refreshTokenDb) {
+                throw new NotFoundException('Refresh token not found');
+            }
+    
             const refreshToken = parseRefreshToken(refreshTokenDb);
-
+    
             if (!refreshToken) {
                 throw new NotFoundException('Refresh token not found');
             }
-
+            
+            // Bu noktada refreshToken artık kesinlikle null olamaz, bu nedenle hatalar giderilir
             if (refreshToken.revokedAt) {
                 throw new UnprocessableEntityException('Refresh token revoked');
             }
-
-            if (refreshToken.expiresAt < new Date()) {
+            
+            if (new Date(refreshToken.expiresAt) < new Date()) {
                 throw new UnprocessableEntityException('Refresh token expired');
             }
-
-            const refreshTokenDbIssuedAt = refreshToken.updatedAt;
-
+            
+            const refreshTokenDbIssuedAt = new Date(refreshToken.updatedAt);
+    
             const oldRefreshTokenIssuedAt = new Date(0);
             oldRefreshTokenIssuedAt.setUTCSeconds(oldRtPayload.iat);
-
-
-            // We need to check if these dates are equal because we need to make sure that the refresh token is not used
-            // after it was updated in the database
+    
             if (refreshTokenDbIssuedAt.getTime() !== oldRefreshTokenIssuedAt.getTime()) {
                 throw new UnprocessableEntityException('Refresh token already consumed');
             }
-
-            // We need to update the expiration date of the refresh token in the database
-            await refreshTokens().where({ id: jti }).update({
-                expiresAt: tokenExpiresAtString,
-                updatedAt: iatString,
-            });
+            if (!jti) {
+                throw new Error("JTI is undefined");
+            }
+            // Refresh token'ın son kullanma tarihini güncelleme
+            await db.update(refreshTokens)
+            .set({
+              expiresAt: tokenExpiresAtString,
+              updatedAt: iatString
+             })
+             .where(eq(refreshTokens.id, jti));
         }
-
+    
         return jti!;
     }
 }
